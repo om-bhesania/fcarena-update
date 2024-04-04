@@ -1,53 +1,45 @@
-import {useState, useEffect} from 'react';
-import {collection, getDocs} from 'firebase/firestore';
-import {db} from '../firebase/firebase';
+import { useState, useEffect } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "../firebase/firebase";
 
-const useGetTranslations = () => {
-  const [loading, setLoading] = useState (true);
-  const [translations, setTranslations] = useState ({});
-  const [error, setError] = useState (null);
+const   useTranslation   = (key) => {
+  const [translation, setTranslation] = useState("");
 
-  useEffect (
-    () => {
-      const fetchTranslations = async () => {
-        setLoading (true);
-        setError (null);
-
-        try {
-          const translationsCollectionRef = collection (db, 'translations');
-          const translationsSnapshot = await getDocs (
-            translationsCollectionRef
-          );
-
-          // Create an empty object to store key-value pairs
-          let translationsData = {};
-
-          // Loop through each document in the collection
-          translationsSnapshot.forEach (doc => {
-            // Get the document data
-            const data = doc.data ();
-            // Loop through each key in the document data
-            Object.keys (data).forEach (key => {
-              // Assign each key-value pair to the translationsData object
-              translationsData[key] = data[key];
-            });
+  useEffect(() => {
+    const fetchTranslation = async () => {
+      try {
+        const q = query(
+          collection(db, "translations"),
+          where("key", "===", key)
+        );
+        const querySnapshot = await getDocs(q);
+        console.log(
+          "Query Snapshot:",
+          querySnapshot.docs.map((doc) => doc.data())
+        );
+        if (!querySnapshot.empty) {
+          querySnapshot.forEach((doc) => {
+            setTranslation(doc.data().value);
           });
-
-          // Set the translations state with the key-value pairs
-          setTranslations (translationsData);
-          setLoading (false);
-        } catch (error) {
-          setError (error);
-          setLoading (false);
+        } else {
+          console.log(`Translation not found for key: ${key}`);
+          // You can set a default value or handle the missing translation as per your requirement
         }
-      };
+      } catch (error) {
+        console.error("Error fetching translation:", error);
+        // Handle error
+      }
+    };
 
-      fetchTranslations ();
-    },
-    []
-  );
+    fetchTranslation();
 
-  return {loading, translations, error};
+    // Cleanup function
+    return () => {
+      // Cleanup code if necessary
+    };
+  }, [key]);
+
+  return translation;
 };
 
-export default useGetTranslations;
+export default useTranslation;

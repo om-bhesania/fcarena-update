@@ -21,19 +21,8 @@ import TermsConditions from "./pages/T&C";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CancellationRefund from "./pages/CancellationRefund";
 import Superadmindashboard from "./pages/superadmindashboard";
-import I18n from "./components/translations/i18n"; 
 
-const i18n = new I18n();
-async function exampleFunction() {
-  const translatedString = i18n.trans("key");
-  console.log(translatedString);
-
-  const translatedPluralString = i18n.trans_choice("key", 2);
-  console.log(translatedPluralString);
-}
 function App() {
-  exampleFunction();
-
   useEffect(() => {
     WebFont.load({
       google: {

@@ -1,121 +1,229 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useToast } from "@chakra-ui/react";
 import { AddTrans } from "../../hooks/useAddTrans";
-import Button from "./../buttons/Button";
+import Translation from "./translation";
+import { debounce } from "lodash";
 
-function TranslationEditor() {
-  const { getTranslations, addTranslation } = AddTrans();
-  const [translations, setTranslations] = useState({});
+const TranslationEditor = () => {
+  const { getTranslations, updateTranslation, deleteTranslation } = AddTrans();
+  const [translations, setTranslations] = useState([]);
+  const [editingTranslationId, setEditingTranslationId] = useState(null);
+  const [editedValue, setEditedValue] = useState("");
   const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [searchKey, setSearchKey] = useState("");
+  const [filteredTranslations, setFilteredTranslations] = useState([]);
+  const toast = useToast();
+  const editRef = useRef(null);
 
-  const handleLoadData = async () => {
-    setLoading(true);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const translationsData = await getTranslations();
+        setTranslations(translationsData);
+        setFilteredTranslations(translationsData);
+      } catch (error) {
+        console.error("Error fetching translations:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const debouncedSearch = debounce(() => {
+      const filtered = translations.filter((translation) =>
+        translation.key.toLowerCase().includes(searchKey.toLowerCase())
+      );
+      setFilteredTranslations(filtered);
+    }, 300);
+
+    debouncedSearch();
+
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [searchKey, translations]);
+
+ 
+
+  const handleEdit = (id, value) => {
+    setEditedValue(value);
+    setEditingTranslationId(id);
+  };
+
+  const handleSave = async () => {
+    if (!editedValue.trim()) {
+      toast({
+        title: "Error",
+        description: "Value cannot be empty",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    await handleUpdate(editingTranslationId);
+    setEditingTranslationId(null);
+  };
+
+  const handleUpdate = async (id) => {
     try {
-      const fetchedTranslations = await getTranslations();
-      console.log("Fetched translations:", fetchedTranslations); // Log fetched translations
-      setTranslations(fetchedTranslations);
-      setDataLoaded(true);
+      setLoading(true);
+      await updateTranslation(id, editedValue);
+      toast({
+        title: "Translation updated",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refresh translations after update
+      const translationsData = await getTranslations();
+      setTranslations(translationsData);
     } catch (error) {
-      console.error("Error loading translations:", error);
+      console.error("Error updating translation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update translation",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    handleLoadData();
-  }, []); // Load translations when the component mounts
-
-  const handleSubmit = async () => {
-    setLoading(true);
+  const handleDelete = async (id) => {
     try {
-      const updatedTranslations = {};
-      for (const id in translations) {
-        const { TransKey, TransValue } = translations[id] || {};
-        updatedTranslations[id] = { TransKey, TransValue };
-        await addTranslation(id, TransKey, TransValue);
-      }
-      setTranslations(updatedTranslations);
-      console.log("Translations submitted successfully");
+      setLoading(true);
+      await deleteTranslation(id);
+      toast({
+        title: "Translation deleted",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      // Refresh translations after delete
+      const translationsData = await getTranslations();
+      setTranslations(translationsData);
     } catch (error) {
-      console.error("Error updating translations:", error);
+      console.error("Error deleting translation:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete translation",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <section>
-      <div className="container">
-        <h2 className="font-semibold mb-4 text-center text-3xl">
-          Translations Editor
+    <div className="container mx-auto">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-2xl font-bold mb-4">
+          <Translation TransKey={"tab.Translations"} />
         </h2>
-        {!dataLoaded && (
-          <button
-            onClick={handleLoadData}
-            className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
-          >
-            Load Translations
-          </button>
+        {window.location.pathname === "/superadmin" ? null : (
+          <>
+            <a
+              className="bg-transparent border border-primary text-primary rounded hover:bg-primary hover:text-white hover:border-secondary undefined p-3 ease-in-out duration-300 font-medium active:scale-[0.9] "
+              href="/superadmin"
+            >
+              Add trasnlations <i className="fas fa-plus"></i>{" "}
+            </a>
+          </>
         )}
-        {loading && <div>Loading...</div>}
-        <form onSubmit={handleSubmit}>
-          {dataLoaded && (
-            <>
-              {Object.keys(translations).map((id) => (
-                <div
-                  key={id}
-                  className="flex items-center justify-center mb-3 gap-6"
-                >
-                  <div className="flex gap-[5px] flex-col">
-                    <span className="inline-block text-sm">Content Key</span>
-                    <input
-                      type="text"
-                      className="border rounded py-1 px-2 w-full flex-1"
-                      value={translations[id]?.TransKey || ""}
-                      onChange={(e) =>
-                        setTranslations((prevTranslations) => ({
-                          ...prevTranslations,
-                          [id]: {
-                            ...prevTranslations[id],
-                            TransKey: e.target.value,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                  <div className="flex gap-[5px] flex-col">
-                    <span className="inline-block text-sm">Content Value</span>
-                    <input
-                      type="text"
-                      className="border rounded py-1 px-2 w-full flex-1"
-                      value={translations[id]?.TransValue || ""}
-                      onChange={(e) =>
-                        setTranslations((prevTranslations) => ({
-                          ...prevTranslations,
-                          [id]: {
-                            ...prevTranslations[id],
-                            TransValue: e.target.value,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              ))}
-              <Button
-                role={"button"}
-                type={"submit"}
-                variant={"outlinePrimary"}
-                label={"Submit"}
-                customClass={"px-12 py-2"}
-              />
-            </>
-          )}
-        </form>
       </div>
-    </section>
+      <div className="">
+        <input
+          type="text"
+          placeholder="Search by key"
+          className="border-2 border-primary p-2 rounded mb-4"
+          value={searchKey}
+          onChange={(e) => setSearchKey(e.target.value)}
+        />
+        <div className="grid md:grid-cols-2 grid-cols-1 gap-6">
+          {filteredTranslations.map((translation) => (
+            <div
+              key={translation.id}
+              className="bg-white rounded-lg p-4 shadow-md"
+            >
+              <p className="text-lg mb-2">
+                <sub>Content Key: </sub>{" "}
+                <sub className=" font-semibold text-xl inline-block">
+                  {translation.key}
+                </sub>
+              </p>
+              {editingTranslationId === translation.id ? (
+                <input
+                  type="text"
+                  value={editedValue}
+                  onChange={(e) => setEditedValue(e.target.value)}
+                  className="text-lg border rounded p-2 w-full mb-2"
+                  ref={editRef}
+                  autoFocus
+                />
+              ) : (
+                <p className="text-lg border rounded p-2 w-full mb-2">
+                  {translation.value}
+                </p>
+              )}
+              <div className="flex items-end justify-end">
+                {editingTranslationId === translation.id ? (
+                  <>
+                    <button
+                      onClick={handleSave}
+                      className="mr-2 bg-blue-900 text-white px-3 py-1 rounded"
+                      disabled={loading}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingTranslationId(null);
+                        setEditedValue(""); // Clear the edited value
+                      }}
+                      className="mr-2 bg-red-500 text-white px-3 py-1 rounded"
+                      disabled={loading}
+                    >
+                      <div className="flex items-center justify-center gap-2">
+                        cancel edit <i className="fas fa-times"></i>
+                      </div>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() =>
+                      handleEdit(translation.id, translation.value)
+                    }
+                    className="mr-2 bg-blue-900 text-white px-3 py-1 rounded"
+                  >
+                    <i className="fas fa-edit"></i>
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDelete(translation.id)}
+                  className="bg-red-500 text-white px-3 py-1 rounded"
+                  disabled={loading}
+                >
+                  <i className="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        {filteredTranslations.length === 0 && (
+          <div className="text-lg text-center my-4 text-red-600 font-bold">
+            <Translation TransKey={"not_found"} />
+          </div>
+        )}
+      </div>
+    </div>
   );
-}
+};
 
 export default TranslationEditor;

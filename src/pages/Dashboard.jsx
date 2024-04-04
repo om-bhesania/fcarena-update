@@ -37,7 +37,9 @@ import axios from "axios";
 import Loading from "../components/Utils/loaders/Loading";
 import TransForm from "../components/translations/translationsForm";
 import TranslationEditor from "../components/translations/editTranslations"; 
-import I18n from "../components/translations/i18n";
+// import I18n from "../components/translations/i18n";
+// import { t } from "i18next";
+import Translations from "../components/translations/translation";
 
 const Dashboard = () => {
   const { availableSlots } = useManageBookings();
@@ -305,25 +307,23 @@ const Dashboard = () => {
     setIsEditing(false);
     setEditedBooking(null);
   };
-const [translatedString, setTranslatedString] = useState ('');
 
-useEffect (() => {
-  async function fetchTranslations () {
-    const translation = await I18n.trans ('translatable_string_key');
-    setTranslatedString (translation);
-  }
-
-  fetchTranslations ();
-}, []);
 
   return (
     <section className="timings-and-pricing py-[30%] md:py-[7%]">
       <div className="container mx-auto px-4">
         <Tabs size="md" variant="enclosed">
           <TabList>
-            <Tab className="font-medium text-lg">Time Slots</Tab>
-            <Tab className="font-medium text-lg">Bookings</Tab>
-            <Tab className="font-medium text-lg">{translatedString}</Tab>
+            <Tab className="font-medium text-lg">
+              <Translations TransKey="tab.TimeSlots" />
+            </Tab>
+            <Tab className="font-medium text-lg">
+              {" "}
+              <Translations TransKey="tab.Bookings" />
+            </Tab>
+            <Tab className="font-medium text-lg">
+              <Translations TransKey="tab.Translations" />
+            </Tab>
           </TabList>
           <TabPanels>
             <TabPanel>
@@ -676,9 +676,9 @@ useEffect (() => {
               </div>
             </TabPanel>
             <TabPanel>
-            <div className="text-3xl font-semibold mb-4 text-center">Translation Form</div>
-              <TransForm/>
-              <TranslationEditor/>
+              <div className="translations pt-5">
+                <TranslationEditor />
+              </div>
             </TabPanel>
           </TabPanels>
         </Tabs>
